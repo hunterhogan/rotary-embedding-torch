@@ -17,16 +17,153 @@ from torch_einops_kit import broadcast_cat as broadcast_cat, default, exists, sl
 from hunterMakesPy import raiseIfNone
 
 def rotate_half(x: Tensor) -> Tensor:
+    """Compute a quarter turn of each adjacent coordinate pair in `Tensor` `x`.
+
+    You can use `rotate_half` inside `apply_rotary_emb` [1] when rotary position embeddings [2] need
+    the 90°-rotated version of `x`. `rotate_half` interprets the last axis as adjacent coordinate
+    pairs, such as `(x₀, x₁)`, `(x₂, x₃)`, and so on. For each coordinate pair, `rotate_half`
+    returns `(-x₁, x₀)`. Despite the name `rotate_half`, `rotate_half` performs a quarter turn, not a
+    half turn. The outer axes, shape, and `dtype` stay unchanged.
+
+    Parameters
+    ----------
+    x : Tensor
+        Input `Tensor` whose last axis has even length. `rotate_half` interprets each adjacent
+        2-element slice of the last axis as one coordinate pair.
+
+    Returns
+    -------
+    rotated : Tensor
+        `Tensor` with the same shape and `dtype` as `x`. For each adjacent coordinate pair `(a, b)`
+        in the last axis, `rotated` contains `(-b, a)`.
+
+    See Also
+    --------
+    apply_rotary_emb : Combine cosine and sine rotary terms using `rotate_half`.
+
+    Mathematics
+    -----------
+    quarter turn : equation
+    ```
+        Let  d ≜ `x.shape[-1]`,  y ≜ `rotated`
+
+        R(π/2) ≜ [[0, −1], [1, 0]]
+        (y₂ⱼ, y₂ⱼ₊₁) = R(π/2) · (x₂ⱼ, x₂ⱼ₊₁)   ∀ j ∈ {0, …, d/2 − 1}
+    ```
+
+    last-axis reshaping : transformation
+    ```
+        Let  m ≜ d / 2
+
+        x ∈ ℝ^{…, 2m}
+        x ↦ x̃ ∈ ℝ^{…, m, 2}
+        (a, b) ↦ (−b, a)
+        x̃ ↦ y ∈ ℝ^{…, 2m}
+    ```
+
+    PyTorch
+    -------
+    last-axis reshaping : transformation
+        `rotate_half` reshapes the last axis from `(..., 2m)` to `(..., m, 2)`, swaps each coordinate
+        pair from `(a, b)` to `(-b, a)`, and flattens the last two axes.
+
+    References
+    ----------
+    [1] rotary_embedding_torch.apply_rotary_emb
+
+    [2] Su, J., Lu, Y., Pan, S., Murtadha, A., Wen, B., & Liu, Y. (2021).
+        RoFormer: Enhanced Transformer with Rotary Position Embedding.
+        https://doi.org/10.48550/arXiv.2104.09864
+    """
     x = rearrange(x, "... (d r) -> ... d r", r=2)
     x1, x2 = x.unbind(dim=-1)
     x = torch.stack((-x2, x1), dim=-1)
     return rearrange(x, "... d r -> ... (d r)")
 
-
 @autocast("cuda", enabled=False)
 def apply_rotary_emb(
     freqs: Tensor, t: Tensor, start_index: int = 0, scale: Tensor | float = 1.0, seq_dim: int = -2, freqs_seq_dim: int | None = None
 ) -> Tensor:
+    """Apply `freqs` rotary angles to `Tensor` `t` at `start_index`.
+
+    You can use `apply_rotary_emb` to apply the rotary angles in angle `Tensor` `freqs` to one
+    feature block of input `Tensor` `t`. `apply_rotary_emb` combines cosine terms from `freqs` with
+    sine terms built from `rotate_half` [1] to implement rotary position embeddings [2]. `scale` is
+    usually `1.0`, but `scale` can also be a broadcastable `Tensor` when XPos length-extrapolation
+    scaling is required [3].
+
+    Parameters
+    ----------
+    freqs : Tensor
+        Rotary-angle `Tensor` `freqs` whose last axis matches the number of rotated features.
+    t : Tensor
+        Input `Tensor` `t` that receives the rotary transformation.
+    start_index : int = 0
+        First feature index of the rotated block inside `Tensor` `t`.
+    scale : Tensor | float = 1.0
+        Broadcastable scale factor multiplied into the rotated block. XPos commonly supplies scale
+        `Tensor` `scale` here [3].
+    seq_dim : int = -2
+        Axis of `Tensor` `t` that stores sequence position.
+    freqs_seq_dim : int | None = None
+        Axis of `Tensor` `freqs` that stores sequence position when `freqs` contains more positions
+        than `t`. If `freqs_seq_dim` is `None` and suffix trimming is required, `apply_rotary_emb`
+        uses axis `0`.
+
+    Returns
+    -------
+    rotated : Tensor
+        Output `Tensor` with the same shape and `dtype` as `t`.
+
+    Raises
+    ------
+    ValueError
+        Raised when `freqs.shape[-1]` exceeds `t.shape[-1]`.
+
+    See Also
+    --------
+    rotate_half : Compute the quarter-turn companion used in the sine term.
+    apply_learned_rotations : Expand learned rotary angles before applying them.
+    RotaryEmbedding.forward : Generate the rotary angles commonly passed as `freqs`.
+
+    Mathematics
+    -----------
+    rotated block : equation
+    ```
+        Let  Ω ≜ `freqs`,  s ≜ `scale`,  J ≜ `rotate_half()`
+             n ≜ `start_index`,  m ≜ n + `freqs.shape[-1]`
+             t = [tˡ ‖ tᵐ ‖ tʳ],  y ≜ `out`
+
+        y = [tˡ ‖ tᵐ ⊙ cos Ω ⊙ s + J(tᵐ) ⊙ sin Ω ⊙ s ‖ tʳ]
+    ```
+
+    sequence trimming : equation
+    ```
+        Let  Ω₀ ≜ `freqs`,  L ≜ `t.shape[seq_dim]`
+             σ ≜ `freqs_seq_dim`,  N ≜ |Ω₀|_σ
+
+        N > L  ⟹  Ω = Ω₀_[N − L, N)
+        N ≤ L  ⟹  Ω = Ω₀
+    ```
+
+    PyTorch
+    -------
+    autocast behavior : rule
+        `apply_rotary_emb` runs with CUDA automatic mixed precision disabled, computes the rotation,
+        and casts the result back to `t.dtype` before returning.
+
+    References
+    ----------
+    [1] rotary_embedding_torch.rotate_half
+
+    [2] Su, J., Lu, Y., Pan, S., Murtadha, A., Wen, B., & Liu, Y. (2021).
+        RoFormer: Enhanced Transformer with Rotary Position Embedding.
+        https://doi.org/10.48550/arXiv.2104.09864
+    [3] Sun, Y., Dong, L., Patra, B., Ma, S., Huang, S., Benhaim, A.,
+        Chaudhary, V., Song, X., & Wei, F. (2022).
+        A Length-Extrapolatable Transformer.
+        https://doi.org/10.48550/arXiv.2212.10554
+    """
     dtype: torch.dtype = t.dtype
 
     if freqs.ndim == 2 or t.ndim == 3:

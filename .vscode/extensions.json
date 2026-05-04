@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "tombi-toml.tombi"
+        "tombi-toml.tombi",
+        "streetsidesoftware.code-spell-checker"
     ]
 }
