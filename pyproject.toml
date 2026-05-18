@@ -18,21 +18,20 @@ classifiers = [
 ]
 dependencies = [
   "einops>=0.7",
-  "hunterMakesPy>=0.5.3",
-  "torch>=2.0",
-  "torch-einops-kit>=0.1.1",
+  "hunterMakesPy",
+  "torch>=2.0.0",
+  "torch-einops-kit>=",
 ]
 
 [project.urls]
-Homepage = "https://github.com/lucidrains/rotary-embedding-torch"
-Repository = "https://github.com/lucidrains/rotary-embedding-torch"
+Homepage = "https://github.com/hunterhogan/rotary-embedding-torch"
+Repository = "https://github.com/hunterhogan/rotary-embedding-torch"
 
 [dependency-groups]
 dev = [
-  "coverage>=7.10.0",
-  "pytest>=8.4.1",
-  "pytest-cov>=6.2.1",
-  "ruff>=0.12.5",
+  "pytest",
+  "pytest-cov",
+  "ruff",
 ]
 testing = ["numpy"]
 
@@ -53,38 +52,10 @@ exclude_lines = [
 ]
 
 [tool.pydoclint]
-style = "google"
+style = "numpy"
 arg-type-hints-in-docstring = false
 check-return-types = false
 check-yield-types = false
-
-[tool.ruff]
-line-length = 140
-
-[tool.ruff.lint]
-select = [
-  "E",  # pycodestyle
-  "F",  # pyflakes
-  "I",  # isort
-  "UP",  # pyupgrade
-  "N",  # pep8-naming
-  "ANN",  # annotations
-  "S",  # bandit
-  "A",  # builtins
-  "C4",  # comprehensions
-  "EM",  # errmsg
-  "ICN",  # import-conventions
-  "PIE",  # pie
-  "PT",  # pytest-style
-  "RSE",  # raise
-  "RET",  # return
-  "TID",  # tidy-imports
-  "ARG",  # unused-arguments
-  "TD",  # todos
-  "PL",  # pylint
-  "FLY",  # flynt
-  "FA",  # flake8-future-annotations
-]
 
 [tool.uv]
 default-groups = "all"

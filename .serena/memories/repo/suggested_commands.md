@@ -1,0 +1,1 @@
+- Use MCP tools instead of the terminal.

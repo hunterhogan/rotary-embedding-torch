@@ -1,0 +1,6 @@
+- Python project targeting `>=3.12`.
+- Indentation in Python files uses tabs; strings prefer single quotes.
+- Type hints are explicit and strict; use PEP 604 unions and `Literal` where appropriate.
+- Ruff line length is 140; pydocstyle convention is NumPy.
+- Docstrings follow `.github/HH-docstrings.md`: NumPy-style sections, Unicode math symbols, no LaTeX, custom sections like `Mathematics`, `PyTorch`, and `Caching` instead of `Notes`.
+- Public attributes are documented in class docstrings.

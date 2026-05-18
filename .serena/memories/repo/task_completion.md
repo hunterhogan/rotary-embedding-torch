@@ -1,0 +1,4 @@
+- After code changes, review the touched file for typing and docstring consistency.
+- Check for problems with MCP tools before considering the task complete.
+- If public API behavior or documentation changes, compare against the README usage examples.
+- This repo currently centers almost all rotary logic in one source file, so regressions often come from shape, dtype, cache, or sequence-axis assumptions.

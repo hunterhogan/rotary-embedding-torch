@@ -1,0 +1,5 @@
+- Purpose: PyTorch library for rotary position embeddings, including base RoPE, axial frequencies, XPos scaling, and position interpolation.
+- Core implementation lives in `src/rotary_embedding_torch/rotary_embedding_torch.py`.
+- Public API is re-exported from `src/rotary_embedding_torch/__init__.py`.
+- Tests live in `tests/test_rope.py` and compare implementation output against manual RoPE computations.
+- README contains the main usage patterns for plain RoPE, cached decoding, axial frequencies, XPos, and interpolation.
