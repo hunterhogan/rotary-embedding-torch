@@ -1,10 +1,8 @@
 from __future__ import annotations
 
+from rotary_embedding_torch import apply_rotary_emb, RotaryEmbedding
 import pytest
 import torch
-
-from rotary_embedding_torch import RotaryEmbedding, apply_rotary_emb
-
 
 def manual_apply_rope(input_vec: torch.Tensor, position: int | float, dim: int, theta: float) -> torch.Tensor:
     """Manually applies rotary positional embedding to the input vector.
@@ -52,10 +50,10 @@ def compute_expected_freqs(dim: int, theta: float) -> torch.Tensor:
 @pytest.mark.parametrize("theta", [10, 1000, 10000, 100000])
 class TestSimpleRopeApply:
     @pytest.mark.parametrize("pos", [0, 1, 42, 13, 67, 69, 39])
-    def test_apply_rotation(self, dim: int, theta: float, pos: int) -> None:
+    def test_apply_rotation(self, dim: int, theta: float, pos: int) -> None:  # noqa: PLR6301
         """Test RoPE implementation against manually computed values for multiple examples."""
         # Generate dynamic input_vec using a seed based on pos for reproducibility
-        torch.manual_seed(pos)
+        torch.manual_seed(pos)  # pyright: ignore[reportUnknownMemberType]
         input_vec = torch.randn(1, dim)
 
         # Create RoPE instance without caching to avoid issues
@@ -71,7 +69,7 @@ class TestSimpleRopeApply:
         # Assert close
         torch.testing.assert_close(result, expected, atol=1e-4, rtol=1e-4)
 
-    def test_frequencies(self, dim: int, theta: float) -> None:
+    def test_frequencies(self, dim: int, theta: float) -> None:  # noqa: PLR6301
         """Test that base frequencies are calculated correctly."""
         rope = RotaryEmbedding(dim=dim, theta=theta)
 
